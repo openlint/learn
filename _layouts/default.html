@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+<meta name="description" content="{{ page.summary | default: site.description | markdownify | strip_html | strip_newlines | escape }}">
+{% assign share_title = page.title | default: site.title | escape %}{% assign share_desc = page.summary | default: site.description | markdownify | strip_html | strip_newlines | escape %}
+<link rel="canonical" href="{{ site.url }}{{ page.url }}">
+<meta property="og:site_name" content="{{ site.title }}">
+<meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}website{% endif %}">
+<meta property="og:title" content="{{ share_title }}">
+<meta property="og:description" content="{{ share_desc }}">
+<meta property="og:url" content="{{ site.url }}{{ page.url }}">
+{% if page.image %}<meta property="og:image" content="{{ site.url }}{{ page.image }}">
+<meta property="og:image:width" content="1376">
+<meta property="og:image:height" content="768">
+<meta property="og:image:alt" content="{{ page.image_alt | escape }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{ site.url }}{{ page.image }}">
+<meta name="twitter:image:alt" content="{{ page.image_alt | escape }}">
+{% else %}<meta name="twitter:card" content="summary">
+{% endif %}<meta name="twitter:title" content="{{ share_title }}">
+<meta name="twitter:description" content="{{ share_desc }}">
+{% if page.layout == 'post' %}<meta property="article:published_time" content="{{ page.date | date_to_xmlschema }}">
+{% if page.author %}<meta name="author" content="{{ page.author }}">{% endif %}
+{% endif %}<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/assets/site.css?v={{ site.time | date: '%s' }}">
+</head>
+<body>
+<main>
+  <nav class="crumbs"><a href="https://openlint.org/">openlint</a> / <a href="/">learn</a>{% for c in page.crumbs %} / <a href="{{ c.url }}">{{ c.name }}</a>{% endfor %}</nav>
+  {{ content }}
+  <footer>
+    <p>An <a href="https://apicommons.org">API Commons</a> effort · <a href="https://github.com/openlint">github.com/openlint</a> · <a href="https://openlint.org/roadmap/">Roadmap</a> · <a href="https://openlint.org/changelog/">Changelog</a> · <a href="mailto:info@openlint.org">info@openlint.org</a> · <a href="https://github.com/openlint/.github/blob/main/CODE_OF_CONDUCT.md">Code of Conduct</a> · <a href="https://openlint.org/privacy/">Privacy</a> · <a href="https://openlint.org/terms/">Terms</a></p>
+  </footer>
+</main>
+</body>
+</html>

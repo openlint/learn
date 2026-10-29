@@ -1,0 +1,8 @@
+title: OpenLint Learn
+description: Learn to write and use OpenLint rulesets — guides, references and reusable snippets for linting API artifacts.
+url: https://learn.openlint.org
+
+exclude:
+  - README.md
+  - CNAME
+  - LICENSE

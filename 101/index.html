@@ -1,0 +1,134 @@
+---
+layout: default
+title: OpenLint 101
+summary: Learn the OpenLint ruleset format through six small, working examples.
+crumbs:
+  - name: "101"
+    url: /101/
+---
+<h1>OpenLint 101</h1>
+<p class="lede">An OpenLint ruleset tells a linter where to look in a JSON or YAML document, and what must be true there. This page teaches the format through six small examples, each one tested against a real linter.</p>
+
+<p>Every example lints this small OpenAPI document. Save it as <code>openapi.yaml</code> to follow along:</p>
+<pre><code>openapi: 3.1.0
+info:
+  title: Example API
+  version: 1.0.0
+servers:
+  - url: http://api.example.com
+paths:
+  /userAccounts:
+    get:
+      summary: List every user account in the system, with paging, filtering and sorting options
+      responses:
+        &quot;200&quot;:
+          description: OK</code></pre>
+
+<p>To run a ruleset, save it as <code>.spectral.yaml</code> and run:</p>
+<pre><code>npx @stoplight/spectral-cli lint openapi.yaml --ruleset .spectral.yaml</code></pre>
+<p class="muted">OpenLint's own command-line tool hasn't been released yet. Until it is, the Spectral CLI runs these rulesets, because OpenLint rulesets are Spectral rulesets.</p>
+
+<h2>1. Your first rule</h2>
+<p>A ruleset is a map of <strong>rules</strong>. Each rule has two parts: <code>given</code> says where to look, as a JSONPath expression, and <code>then</code> says what must be true there, by calling a function.</p>
+<pre><code>rules:
+  info-description:
+    description: Every API needs a description.
+    given: $.info
+    then:
+      field: description
+      function: truthy</code></pre>
+<p>This rule looks at <code>$.info</code>, checks its <code>description</code> field with the <code>truthy</code> function, and reports when it's missing:</p>
+<pre><code>openapi.yaml:2:6 warning info-description "Every API needs a description."</code></pre>
+<p>With no <code>message</code> of its own, the result uses the rule's <code>description</code>.</p>
+
+<h2>2. Severity</h2>
+<p>Each result has a severity: <code>error</code>, <code>warn</code> (the default), <code>info</code> or <code>hint</code>. Use <code>off</code> to switch a rule off. Errors are what usually fail a CI build.</p>
+<pre><code>rules:
+  info-description:
+    description: Every API needs a description.
+    severity: error
+    given: $.info
+    then:
+      field: description
+      function: truthy</code></pre>
+<pre><code>openapi.yaml:2:6 error info-description "Every API needs a description."</code></pre>
+
+<h2>3. Start from a built-in ruleset</h2>
+<p>You don't have to write every rule yourself. <code>extends</code> pulls in another ruleset, here the built-in OpenAPI rules, and <code>rules</code> then adjusts them by name: raise one to <code>error</code>, or turn one <code>"off"</code>.</p>
+<pre><code>extends: spectral:oas
+rules:
+  info-contact: &quot;off&quot;
+  operation-tags: error</code></pre>
+<pre><code>openapi.yaml:2:6 warning info-description "Info "description" must be present and non-empty string."
+openapi.yaml:9:9 warning operation-description "Operation "description" must be present and non-empty string."
+openapi.yaml:9:9 warning operation-operationId "Operation must have "operationId"."
+openapi.yaml:9:9 error operation-tags "Operation must have non-empty "tags" array."</code></pre>
+<p>Quote <code>"off"</code>. Some YAML tools read a bare <code>off</code> as <code>false</code>.</p>
+
+<h2>4. Functions</h2>
+<p>The function in <code>then</code> decides what "must be true" means. The core functions are <code>truthy</code>, <code>falsy</code>, <code>defined</code>, <code>undefined</code>, <code>pattern</code>, <code>casing</code>, <code>length</code>, <code>alphabetical</code>, <code>enumeration</code>, <code>schema</code>, <code>xor</code>, <code>or</code> and <code>unreferencedReusableObject</code>. <code>functionOptions</code> configures them. <code>field: "@key"</code> checks a key instead of a value.</p>
+<pre><code>rules:
+  paths-kebab-case:
+    description: Path segments use kebab-case.
+    given: $.paths
+    then:
+      field: &quot;@key&quot;
+      function: pattern
+      functionOptions:
+        match: &quot;^(/[a-z0-9-{}]+)+$&quot;
+  operation-summary-length:
+    description: Summaries stay short.
+    given: $.paths[*][get,put,post,delete,patch]
+    then:
+      field: summary
+      function: length
+      functionOptions:
+        max: 80</code></pre>
+<pre><code>openapi.yaml:8:17 warning paths-kebab-case "Path segments use kebab-case."
+openapi.yaml:10:16 warning operation-summary-length "Summaries stay short."</code></pre>
+
+<h2>5. Formats and messages</h2>
+<p><code>formats</code> limits a ruleset or a rule to one kind of document, so OpenAPI rules don't fire on an AsyncAPI file. <code>message</code> writes the result text, with placeholders such as <code>{% raw %}{{property}}{% endraw %}</code> and <code>{% raw %}{{value}}{% endraw %}</code>.</p>
+{% raw %}<pre><code>formats: [oas3]
+rules:
+  servers-https:
+    description: Servers must use HTTPS.
+    message: &quot;{{property}} must start with https:// but was {{value}}&quot;
+    severity: error
+    given: $.servers[*]
+    then:
+      field: url
+      function: pattern
+      functionOptions:
+        match: &quot;^https://&quot;</code></pre>{% endraw %}
+<pre><code>openapi.yaml:6:10 error servers-https "url must start with https:// but was http://api.example.com"</code></pre>
+
+<h2>6. Aliases</h2>
+<p>When several rules look in the same place, name that place once as an <strong>alias</strong>, and refer to it with <code>#</code>.</p>
+<pre><code>aliases:
+  Operation:
+    - $.paths[*][get,put,post,delete,patch]
+rules:
+  operation-summary:
+    description: Every operation has a summary.
+    given: &quot;#Operation&quot;
+    then:
+      field: summary
+      function: truthy
+  operation-id:
+    description: Every operation has an operationId.
+    given: &quot;#Operation&quot;
+    then:
+      field: operationId
+      function: truthy</code></pre>
+<pre><code>openapi.yaml:9:9 warning operation-id "Every operation has an operationId."</code></pre>
+<p>The operation has a summary, so only the <code>operationId</code> rule reports.</p>
+
+<h2>Check your ruleset</h2>
+<p>The <a href="https://spec.openlint.org/v1/ruleset.schema.json">JSON Schema</a> catches mistakes in a ruleset, such as a misspelled field or a <code>given</code> that isn't a path, before you lint anything. <a href="https://spec.openlint.org/v1/draft/#schema">Using the schema</a> shows how to use it in your editor and in CI.</p>
+
+<h2>Where next</h2>
+<ul class="links">
+  <li><a href="https://spec.openlint.org">The specification</a>: everything in the format, including <code>overrides</code> and custom functions</li>
+  <li><a href="https://github.com/orgs/openlint/discussions/25">Education discussion (#25)</a>: suggest what comes after 101</li>
+</ul>
